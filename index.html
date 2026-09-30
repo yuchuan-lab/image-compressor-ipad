@@ -644,8 +644,6 @@
 
       <div class="title-area">
 
-
-
         <div class="title-row">
 
           <div class="mineral-icon" aria-hidden="true">
@@ -677,9 +675,6 @@
           </h1>
 
         </div>
-
-       
-
 
       </div>
 
@@ -799,6 +794,10 @@
     let compressedFiles = [];
 
 
+    /* =========================
+       選擇圖片
+       ========================= */
+
     fileInput.addEventListener(
       "change",
       function () {
@@ -810,6 +809,10 @@
       }
     );
 
+
+    /* =========================
+       拖曳進入
+       ========================= */
 
     dropArea.addEventListener(
       "dragover",
@@ -823,6 +826,10 @@
     );
 
 
+    /* =========================
+       拖曳離開
+       ========================= */
+
     dropArea.addEventListener(
       "dragleave",
       function () {
@@ -832,6 +839,10 @@
       }
     );
 
+
+    /* =========================
+       放下圖片
+       ========================= */
 
     dropArea.addEventListener(
       "drop",
@@ -846,6 +857,10 @@
       }
     );
 
+
+    /* =========================
+       清除全部
+       ========================= */
 
     clearButton.addEventListener(
       "click",
@@ -870,6 +885,10 @@
       }
     );
 
+
+    /* =========================
+       處理圖片
+       ========================= */
 
     function handleFiles(files) {
 
@@ -899,6 +918,10 @@
     }
 
 
+    /* =========================
+       圖片壓縮
+       ========================= */
+
     function compressImage(file) {
 
       const image =
@@ -922,6 +945,10 @@
           let height = image.height;
 
 
+          /* =========================
+             限制最大尺寸
+             ========================= */
+
           if (
             width > maxWidth ||
             height > maxHeight
@@ -944,6 +971,10 @@
           }
 
 
+          /* =========================
+             建立 Canvas
+             ========================= */
+
           const canvas =
             document.createElement("canvas");
 
@@ -953,9 +984,39 @@
           canvas.height = height;
 
 
-          const ctx =
-            canvas.getContext("2d");
+          /*
+           * alpha: true 非常重要。
+           *
+           * 它讓 Canvas 可以保留透明度。
+           */
 
+          const ctx =
+            canvas.getContext(
+              "2d",
+              {
+                alpha: true
+              }
+            );
+
+
+          /*
+           * 不填入任何背景色。
+           *
+           * 如果原始圖片有透明區域，
+           * 透明區域就會維持透明。
+           */
+
+          ctx.clearRect(
+            0,
+            0,
+            width,
+            height
+          );
+
+
+          /* =========================
+             繪製圖片
+             ========================= */
 
           ctx.drawImage(
             image,
@@ -965,6 +1026,80 @@
             height
           );
 
+
+          /* =========================
+             判斷是否有透明背景
+             ========================= */
+
+          const imageData =
+            ctx.getImageData(
+              0,
+              0,
+              width,
+              height
+            );
+
+
+          const pixels =
+            imageData.data;
+
+
+          let hasTransparency = false;
+
+
+          /*
+           * 每 4 個數值：
+           *
+           * R = 紅
+           * G = 綠
+           * B = 藍
+           * A = Alpha / 透明度
+           *
+           * A < 255 表示有透明像素。
+           */
+
+          for (
+            let i = 3;
+            i < pixels.length;
+            i += 4
+          ) {
+
+            if (pixels[i] < 255) {
+
+              hasTransparency = true;
+
+              break;
+
+            }
+
+          }
+
+
+          /* =========================
+             自動決定輸出格式
+             ========================= */
+
+          const outputType =
+            hasTransparency
+              ? "image/png"
+              : "image/jpeg";
+
+
+          /*
+           * PNG 不使用 JPEG 品質參數。
+           *
+           * 普通照片使用 JPEG 75%。
+           */
+
+          const outputQuality =
+            hasTransparency
+              ? undefined
+              : 0.75;
+
+
+          /* =========================
+             輸出圖片
+             ========================= */
 
           canvas.toBlob(
             function (blob) {
@@ -981,6 +1116,10 @@
                 URL.createObjectURL(blob);
 
 
+              /* =========================
+                 計算節省比例
+                 ========================= */
+
               const percentage =
                 Math.round(
                   (1 - blob.size / file.size) * 100
@@ -993,6 +1132,10 @@
                   percentage
                 );
 
+
+              /* =========================
+                 建立圖片資料
+                 ========================= */
 
               const item = {
 
@@ -1012,7 +1155,13 @@
                   blob,
 
                 url:
-                  compressedURL
+                  compressedURL,
+
+                hasTransparency:
+                  hasTransparency,
+
+                outputType:
+                  outputType
 
               };
 
@@ -1026,12 +1175,16 @@
               updateStatus();
 
             },
-            "image/jpeg",
-            0.75
+            outputType,
+            outputQuality
           );
 
         };
 
+
+      /* =========================
+         圖片讀取錯誤
+         ========================= */
 
       image.onerror =
         function () {
@@ -1047,6 +1200,10 @@
     }
 
 
+    /* =========================
+       建立圖片卡片
+       ========================= */
+
     function createFileCard(item) {
 
       const card =
@@ -1056,6 +1213,10 @@
       card.className =
         "file-card";
 
+
+      /* =========================
+         縮圖
+         ========================= */
 
       const thumbnailWrap =
         document.createElement("div");
@@ -1084,6 +1245,10 @@
       thumbnailWrap.appendChild(thumbnail);
 
 
+      /* =========================
+         資訊區
+         ========================= */
+
       const info =
         document.createElement("div");
 
@@ -1102,8 +1267,14 @@
 
       specimenID.textContent =
         "SPECIMEN "
-        + String(compressedFiles.length).padStart(3, "0");
+        + String(
+            compressedFiles.length
+          ).padStart(3, "0");
 
+
+      /* =========================
+         檔名
+         ========================= */
 
       const name =
         document.createElement("div");
@@ -1116,6 +1287,10 @@
       name.textContent =
         item.originalName;
 
+
+      /* =========================
+         檔案大小
+         ========================= */
 
       const meta =
         document.createElement("div");
@@ -1132,6 +1307,10 @@
         + "壓縮後："
         + formatSize(item.compressedSize);
 
+
+      /* =========================
+         壓縮比例
+         ========================= */
 
       const compression =
         document.createElement("div");
@@ -1150,12 +1329,51 @@
       meta.appendChild(compression);
 
 
+      /* =========================
+         格式提示
+         ========================= */
+
+      const format =
+        document.createElement("div");
+
+
+      format.className =
+        "file-meta";
+
+
+      format.style.marginTop =
+        "3px";
+
+
+      if (item.hasTransparency) {
+
+        format.textContent =
+          "格式：PNG · 透明背景保留";
+
+      } else {
+
+        format.textContent =
+          "格式：JPEG";
+
+      }
+
+
+      /* =========================
+         放入資訊區
+         ========================= */
+
       info.appendChild(specimenID);
 
       info.appendChild(name);
 
       info.appendChild(meta);
 
+      info.appendChild(format);
+
+
+      /* =========================
+         下載按鈕
+         ========================= */
 
       const downloadButton =
         document.createElement("button");
@@ -1183,6 +1401,10 @@
       );
 
 
+      /* =========================
+         放入卡片
+         ========================= */
+
       card.appendChild(thumbnailWrap);
 
       card.appendChild(info);
@@ -1194,6 +1416,10 @@
 
     }
 
+
+    /* =========================
+       下載圖片
+       ========================= */
 
     function downloadFile(item) {
 
@@ -1207,7 +1433,8 @@
 
       link.download =
         createDownloadName(
-          item.originalName
+          item.originalName,
+          item.hasTransparency
         );
 
 
@@ -1222,27 +1449,48 @@
     }
 
 
-    function createDownloadName(filename) {
+    /* =========================
+       建立下載檔名
+       ========================= */
+
+    function createDownloadName(
+      filename,
+      hasTransparency
+    ) {
 
       const lastDot =
         filename.lastIndexOf(".");
 
 
+      const extension =
+        hasTransparency
+          ? ".png"
+          : ".jpg";
+
+
       if (lastDot === -1) {
 
-        return filename
-          + "_compressed.jpg";
+        return (
+          filename
+          + "_compressed"
+          + extension
+        );
 
       }
 
 
       return (
         filename.substring(0, lastDot)
-        + "_compressed.jpg"
+        + "_compressed"
+        + extension
       );
 
     }
 
+
+    /* =========================
+       更新圖片數量
+       ========================= */
 
     function updateStatus() {
 
@@ -1257,6 +1505,10 @@
 
     }
 
+
+    /* =========================
+       格式化檔案大小
+       ========================= */
 
     function formatSize(bytes) {
 
