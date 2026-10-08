@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>圖片壓縮工具</title>
+
+  <style>
+    :root {
+      --cream: #F7F3E8;
+      --olive: #68704A;
+      --olive-dark: #4E5537;
+      --text: #3F4138;
+      --muted: #898B7C;
+      --border: #D8D5C6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--cream);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "PingFang TC",
+        "Helvetica Neue",
+        sans-serif;
+
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app {
+      width: min(90%, 680px);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+    }
+
+    .drop-area {
+      margin-top: 48px;
+      min-height: 280px;
+      border: 1.5px dashed var(--border);
+      border-radius: 20px;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      cursor: pointer;
+    }
+
+    .drop-icon {
+      font-size: 42px;
+      margin-bottom: 20px;
+    }
+
+    .drop-title {
+      font-size: 18px;
+      color: var(--olive-dark);
+      font-weight: 500;
+    }
+
+    .drop-subtitle {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .privacy {
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .preview {
+      display: none;
+      margin-top: 32px;
+    }
+
+    .preview img {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 12px;
+    }
+
+    .file-size {
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .result {
+      margin-top: 10px;
+      font-size: 18px;
+      color: var(--olive-dark);
+      font-weight: 500;
+    }
+
+    .saving {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--olive);
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="app">
+
+    <h1>圖片壓縮工具</h1>
+
+    <div class="subtitle">
+      Compress for Goodnotes
+    </div>
+
+    <label class="drop-area" for="file-input">
+
+      <div class="drop-icon">⌁</div>
+
+      <div class="drop-title">
+        選擇圖片
+      </div>
+
+      <div class="drop-subtitle">
+        或拖曳圖片至此
+      </div>
+
+    </label>
+
+    <input
+      id="file-input"
+      type="file"
+      accept="image/*"
+    >
+
+    <div class="preview" id="preview">
+
+      <img
+        id="preview-image"
+        alt="壓縮後圖片"
+        draggable="true"
+      >
+
+      <div class="file-size" id="file-size"></div>
+
+      <div class="result" id="result"></div>
+
+      <div class="saving" id="saving"></div>
+
+    </div>
+
+    <div class="privacy">
+      圖片會在本機處理，不上傳
+    </div>
+
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("file-input");
+    const preview = document.getElementById("preview");
+    const previewImage = document.getElementById("preview-image");
+    const fileSize = document.getElementById("file-size");
+    const result = document.getElementById("result");
+    const saving = document.getElementById("saving");
+
+    fileInput.addEventListener("change", function () {
+
+      const file = fileInput.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      preview.style.display = "block";
+
+      fileSize.textContent =
+        "原始大小：" + formatSize(file.size);
+
+      const image = new Image();
+      const imageURL = URL.createObjectURL(file);
+
+      image.onload = function () {
+
+        const maxWidth = 1600;
+        const maxHeight = 1600;
+
+        let width = image.width;
+        let height = image.height;
+
+        if (width > maxWidth || height > maxHeight) {
+
+          const scale = Math.min(
+            maxWidth / width,
+            maxHeight / height
+          );
+
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+
+        ctx.drawImage(
+          image,
+          0,
+          0,
+          width,
+          height
+        );
+
+        canvas.toBlob(
+          function (blob) {
+
+            const compressedURL =
+              URL.createObjectURL(blob);
+
+            previewImage.src = compressedURL;
+
+            result.textContent =
+              "壓縮後：" + formatSize(blob.size);
+
+            const percentage =
+              Math.round(
+                (1 - blob.size / file.size) * 100
+              );
+
+            saving.textContent =
+              "節省 " + Math.max(0, percentage) + "%";
+
+          },
+          "image/jpeg",
+          0.75
+        );
+
+      };
+
+      image.src = imageURL;
+
+    });
+
+    function formatSize(bytes) {
+
+      if (bytes >= 1024 * 1024) {
+
+        return (
+          (bytes / (1024 * 1024)).toFixed(2)
+          + " MB"
+        );
+
+      }
+
+      return (
+        (bytes / 1024).toFixed(0)
+        + " KB"
+      );
+    }
+  </script>
+
+</body>
+</html>
